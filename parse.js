@@ -4,26 +4,27 @@
 var util = require('util')
 var data = require('./data.js')
 
-  module.exports = parse;
 
   var parse = {
 
     parse: function (input) {
-      var repoName = input.url.split('/')[6];
+      var repoName = input.url.split('/')[5];
       var rootArray = input.tree;
 
       
       var allChildren = this.createChildren(rootArray);
       var uniquePaths = this.reduceToUnique(Object.keys(allChildren));
       console.log('______Unique Paths_______')
-      console.log(uniquePaths);
+      // console.log(uniquePaths);
       var deepestPaths = this.findDeepestPaths(uniquePaths);
       console.log('______Deepest Paths_______')
       console.log(deepestPaths);
           console.log("__________________")
 
-      var result = this.createFinalObject(deepestPaths, allChildren);
-
+      var result = this.createFinalObject(deepestPaths, allChildren, repoName);
+      
+      result = JSON.stringify(result);
+      // result = JSON.parse(result);
       return result;
 
     },
@@ -53,24 +54,24 @@ var data = require('./data.js')
       return filesObj;
 
     },
-    // not using right now
-    findDeepestPaths: function (array) {
-      // given an array of objects with property paths
-      directories = this.reduceToUnique(array);
+    findDeepestPaths: function (directories) {
+      // given an array paths as strings
       return directories.reduce( function (deep, dir, i, arr ) {
-        //split the current and prev take one off the current re join and see if they match, if they don't match you have two different paths, add the return prev
+        //split the current and prev take one off the current, re join and see if they match, if they don't match you have two different paths, add the return prev
 
         if (!arr[i+1]) {
           deep.push(dir);
           return deep;
         }
-        var a = dir.split('/');
-        var b = arr[i+1].split('/');
-        console.log(dir)
-        b.pop();
-        a = a.join('/');
-        b = b.join('/');
-        if (a !== b) { deep.push(a) }
+        var curr = dir.split('/').shift();
+        var next = arr[i+1].split('/').shift();
+
+        // var curr = dir.split('/');
+        // var next = arr[i+1].split('/');
+        // next.pop();
+        // curr = curr.join('/');
+        // next = next.join('/');
+        if (curr !== next && dir !== '') { deep.push(dir) }
           return deep;
       }, []);
 
@@ -81,26 +82,42 @@ var data = require('./data.js')
       // make each name and object in the array
       
     },
-    // names is an array of desired keys, that represent a file path
+    // names is an array of the longest unique paths
     // children is an object with file paths (string) for keys and an array of objects (children) that belong in that file
     
-    createFinalObject: function(names, childrenObj) {
-      var repoObject = {children: []}
-      names.forEach(function (path) {
-        // we have to run create final object
+    createFinalObject: function(names, childrenObj, repoName) {
+      // this is the outermost object
+      var repoObject = {'name': repoName, 'children': []};
+      repoObject.children.push(childrenObj[''][0]);
 
-        var nestedObj = path.split('/').reduceRight(function ( base, name, i, arr ) {
-            var nested = { name: '',children: [] }
+      // this loops through all the paths
+      names.forEach( function (path) {
+        var splitPath = path.split('/');
+        
+        // this loops over each file in a path from right to left (deepest to shallowest)
+        var nestedObj = splitPath.reduceRight(function ( base, name, i, arr ) {
+            var j = i;
+
+            if ( Object.keys(base).length === 0 ) {
+              base = undefined;
+            }
+            // create an object and set the name with the current file
+            var nested = { 'name': '',children: [] };
             nested.name = name;
 
-            var currentPath = arr.slice(0,i).join('/');
-            console.log('Current Path: ', currentPath)
+            // grab current filr path
+            if (i === 0) { i = 1}
+            var currentPath = arr.slice(0, i+1).join('/');
+            // if (currentPath === '') { repoObject.children.push(childrenObj[currentPath][0]) }
             if (childrenObj[currentPath]) {
-              nested.children = children[currentPath];
+              nested.children = childrenObj[currentPath];
             }
-            nested.children.push(base);
+
+            if (base !== undefined) { nested.children.push(base) }
             return nested;
-        }, { name: 'x',children: [] });
+
+        }, {});
+
         repoObject.children.push(nestedObj);
       });
 
@@ -115,22 +132,18 @@ var data = require('./data.js')
   }
 };
 
-      // var x = parse.createNestedObject(['a', 'b', 'c', 'd', 'e']);
+  module.exports = parse;
+ 
 
-      // console.log( x)
-
-      // var deep = parse.findDeepestPaths({'root': true,'root/src': true,'root/src/client': true, 'root/src/server': true, 'root/src/server/test': true, 'root/src/server/models': true, 'test': true, 'config': true});
-      // console.log('Deep: ',deep); 
-
-      var children = parse.createChildren(data.repo.tree)
-      console.log('______Children_______')
-      console.log(children)
+      // var children = parse.createChildren(data.repo.tree)
+      // console.log('______Children_______')
+      // console.log(children)
       
 
       var result = parse.parse(data.repo);
 
 
-      console.log('______Original_______');
+      // console.log('______Original_______');
       // console.log(util.inspect(data.repo, false, null))
       
 
